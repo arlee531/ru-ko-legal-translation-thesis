@@ -220,10 +220,33 @@ class LegalTranslationTrainer:
             padding=True
         )
         
+        # 콜백 리스트 준비
+        callbacks = []
+        
         # 조기 종료 콜백
         early_stopping = EarlyStoppingCallback(
             early_stopping_patience=self.config["training"]["early_stopping_patience"]
         )
+        callbacks.append(early_stopping)
+        
+        # 성능 모니터링 콜백 (사용 가능한 경우)
+        if MONITORING_AVAILABLE:
+            print("🔍 Setting up performance monitoring...")
+            performance_monitor = create_performance_monitor(
+                log_dir="./logs",
+                checkpoint_dir="./checkpoints",
+                final_model_path="./nllb-legal-ru-ko-final",
+                logging_steps=self.config["training"]["logging_steps"],
+                save_steps=self.config["training"]["save_steps"]
+            )
+            callbacks.append(performance_monitor)
+            print("✅ Performance monitoring enabled")
+            print("   - 200스텝마다 학습 진행 상황 기록")
+            print("   - 1,000스텝마다 모델 체크포인트 저장")
+            print("   - 워밍업 및 학습률 스케줄링 모니터링")
+            print("   - 최종 모델을 './nllb-legal-ru-ko-final'에 저장")
+        else:
+            print("⚠️  Performance monitoring disabled - module not available")
         
         # 트레이너 초기화
         self.trainer = Trainer(
@@ -234,7 +257,7 @@ class LegalTranslationTrainer:
             tokenizer=self.tokenizer,
             data_collator=data_collator,
             compute_metrics=self.compute_metrics,
-            callbacks=[early_stopping]
+            callbacks=callbacks
         )
         
         print("✅ Trainer setup complete")
