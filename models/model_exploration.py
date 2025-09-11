@@ -19,5 +19,3 @@ def clear_memory():
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-
-# ... [나머지 코드는 위에서 만든 아티팩트 참조]
