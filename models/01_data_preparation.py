@@ -1,8 +1,9 @@
 """
-데이터 준비 (로딩 및 전처리)
-Data Preparation (Loading and Preprocessing)
+데이터 준비 (파일 업로드 및 전처리)
+Data Preparation with File Upload (Loading and Preprocessing)
 
 본 스크립트는 논문 5.1.3의 첫 번째 단계인 데이터 준비를 담당합니다.
+- 파일 업로드 기능 추가
 - CSV 파일 로드
 - 컬럼명 표준화
 - 데이터 품질 검증
@@ -10,6 +11,7 @@ Data Preparation (Loading and Preprocessing)
 
 Author: [Ahreum Lee]
 Date: 2025-09-11
+Modified: 2025-09-17 (파일 업로드 기능 추가)
 """
 
 import pandas as pd
@@ -19,9 +21,88 @@ from typing import Dict, Tuple, Any, List
 import logging
 import os
 
+# 코랩 환경 확인 및 업로드 기능 추가
+try:
+    from google.colab import files
+    IN_COLAB = True
+    print("Google Colab 환경이 감지되었습니다.")
+except ImportError:
+    IN_COLAB = False
+    print("로컬 환경에서 실행됩니다.")
+
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+def upload_files():
+    """파일 업로드 기능"""
+    if IN_COLAB:
+        print("필요한 CSV 파일들을 업로드해주세요:")
+        print("- train_v2.csv (훈련 데이터)")
+        print("- dev_v2.csv (검증 데이터)")  
+        print("- test_v2.csv (테스트 데이터)")
+        print("\n파일 선택 버튼을 클릭하여 업로드를 시작하세요.")
+        
+        uploaded = files.upload()
+        
+        print("\n업로드 완료된 파일들:")
+        for filename in uploaded.keys():
+            print(f"- {filename}")
+        
+        return list(uploaded.keys())
+    else:
+        print("로컬 환경에서는 파일이 현재 디렉토리에 있어야 합니다.")
+        current_files = [f for f in os.listdir('.') if f.endswith('.csv')]
+        print(f"현재 디렉토리의 CSV 파일들: {current_files}")
+        return current_files
+
+def check_uploaded_files():
+    """업로드된 파일 확인 및 자동 매핑"""
+    print("\n업로드된 파일 확인 중...")
+    
+    # 현재 디렉토리의 모든 파일 확인
+    all_files = os.listdir('.')
+    csv_files = [f for f in all_files if f.endswith('.csv')]
+    
+    print(f"발견된 CSV 파일들: {csv_files}")
+    
+    # 파일명 자동 매핑
+    file_mapping = {}
+    
+    for file in csv_files:
+        if 'train' in file.lower():
+            file_mapping['train'] = file
+        elif 'dev' in file.lower() or 'val' in file.lower():
+            file_mapping['dev'] = file
+        elif 'test' in file.lower():
+            file_mapping['test'] = file
+    
+    print(f"\n자동 매핑 결과:")
+    for split, filename in file_mapping.items():
+        print(f"- {split}: {filename}")
+    
+    # 누락된 파일 확인
+    required_splits = ['train', 'dev', 'test']
+    missing_files = [split for split in required_splits if split not in file_mapping]
+    
+    if missing_files:
+        print(f"\n누락된 파일: {missing_files}")
+        print("파일명에 'train', 'dev', 'test'가 포함되도록 해주세요.")
+        
+        # 수동 매핑 옵션
+        if len(csv_files) >= 3:
+            print(f"\n수동 매핑을 시도합니다:")
+            print(f"첫 번째 파일을 train으로 사용: {csv_files[0]}")
+            print(f"두 번째 파일을 dev로 사용: {csv_files[1]}")
+            print(f"세 번째 파일을 test로 사용: {csv_files[2]}")
+            
+            file_mapping = {
+                'train': csv_files[0],
+                'dev': csv_files[1], 
+                'test': csv_files[2]
+            }
+    
+    return file_mapping
 
 class LegalDataLoader:
     """법률 도메인 데이터 로딩 및 전처리 클래스"""
@@ -35,29 +116,34 @@ class LegalDataLoader:
         # 데이터 통계
         self.data_stats = {}
     
-    def load_csv_files(self, train_path: str = "train_v2.csv", 
-                      dev_path: str = "dev_v2.csv", 
-                      test_path: str = "test_v2.csv") -> bool:
+    def load_csv_files(self, file_mapping: Dict[str, str] = None) -> bool:
         """CSV 파일들을 로드합니다."""
         try:
             logger.info("CSV 파일 로딩 시작")
             
+            # 파일 매핑이 없으면 기본값 사용
+            if file_mapping is None:
+                file_mapping = {
+                    "train": "train_v2.csv",
+                    "dev": "dev_v2.csv", 
+                    "test": "test_v2.csv"
+                }
+            
             # 파일 존재 확인
-            files = {"train": train_path, "dev": dev_path, "test": test_path}
-            for split, path in files.items():
+            for split, path in file_mapping.items():
                 if not os.path.exists(path):
                     logger.error(f"{split} 파일을 찾을 수 없습니다: {path}")
                     return False
             
             # 파일 로딩
-            logger.info(f"훈련 데이터 로딩: {train_path}")
-            self.train_df = pd.read_csv(train_path)
+            logger.info(f"훈련 데이터 로딩: {file_mapping['train']}")
+            self.train_df = pd.read_csv(file_mapping['train'])
             
-            logger.info(f"검증 데이터 로딩: {dev_path}")
-            self.dev_df = pd.read_csv(dev_path)
+            logger.info(f"검증 데이터 로딩: {file_mapping['dev']}")
+            self.dev_df = pd.read_csv(file_mapping['dev'])
             
-            logger.info(f"테스트 데이터 로딩: {test_path}")
-            self.test_df = pd.read_csv(test_path)
+            logger.info(f"테스트 데이터 로딩: {file_mapping['test']}")
+            self.test_df = pd.read_csv(file_mapping['test'])
             
             logger.info("모든 CSV 파일 로딩 완료")
             return True
@@ -106,13 +192,33 @@ class LegalDataLoader:
             datasets = {"train": self.train_df, "dev": self.dev_df, "test": self.test_df}
             
             for split, df in datasets.items():
-                # id 컬럼 제거, ru와 ko 컬럼만 사용
-                if 'ru' not in df.columns or 'ko' not in df.columns:
-                    logger.error(f"{split} 데이터에 'ru' 또는 'ko' 컬럼이 없습니다.")
-                    return False
+                # 컬럼 확인 및 자동 매핑
+                columns = df.columns.tolist()
+                logger.info(f"{split} 데이터 컬럼: {columns}")
+                
+                # 러시아어/한국어 컬럼 자동 감지
+                ru_col = None
+                ko_col = None
+                
+                for col in columns:
+                    col_lower = col.lower()
+                    if 'ru' in col_lower or 'russian' in col_lower or 'source' in col_lower:
+                        ru_col = col
+                    elif 'ko' in col_lower or 'korean' in col_lower or 'target' in col_lower:
+                        ko_col = col
+                
+                if ru_col is None or ko_col is None:
+                    # 컬럼명 자동 감지 실패시 순서로 추정
+                    if len(columns) >= 2:
+                        ru_col = columns[0] if ru_col is None else ru_col
+                        ko_col = columns[1] if ko_col is None else ko_col
+                        logger.warning(f"{split}: 컬럼 자동감지 실패, 순서로 추정 - ru: {ru_col}, ko: {ko_col}")
+                    else:
+                        logger.error(f"{split} 데이터에 충분한 컬럼이 없습니다.")
+                        return False
                 
                 # 새로운 데이터프레임 생성
-                clean_df = df[['ru', 'ko']].copy()
+                clean_df = df[[ru_col, ko_col]].copy()
                 clean_df.columns = ['source_text', 'target_text']
                 
                 # 원본 데이터프레임 교체
@@ -123,7 +229,7 @@ class LegalDataLoader:
                 elif split == "test":
                     self.test_df = clean_df
                 
-                logger.info(f"{split} 데이터 컬럼명 변경: ru→source_text, ko→target_text")
+                logger.info(f"{split} 데이터 컬럼명 변경: {ru_col}→source_text, {ko_col}→target_text")
             
             logger.info("컬럼명 표준화 완료")
             return True
@@ -281,39 +387,52 @@ def main():
     print("러시아어-한국어 법률 번역 데이터 준비")
     print("="*80)
     
-    # 데이터 로더 초기화
+    # 1. 파일 업로드 (코랩인 경우)
+    if IN_COLAB:
+        uploaded_files = upload_files()
+        if not uploaded_files:
+            print("파일 업로드가 필요합니다.")
+            return None
+    
+    # 2. 업로드된 파일 확인 및 매핑
+    file_mapping = check_uploaded_files()
+    if len(file_mapping) < 3:
+        print("필요한 모든 파일이 준비되지 않았습니다.")
+        return None
+    
+    # 3. 데이터 로더 초기화
     loader = LegalDataLoader()
     
-    # 1. CSV 파일 로딩
-    if not loader.load_csv_files():
+    # 4. CSV 파일 로딩
+    if not loader.load_csv_files(file_mapping):
         print("CSV 파일 로딩 실패")
         return None
     
-    # 2. 원시 데이터 분석
+    # 5. 원시 데이터 분석
     loader.analyze_raw_data()
     
-    # 3. 컬럼명 표준화
+    # 6. 컬럼명 표준화
     if not loader.standardize_columns():
         print("컬럼명 표준화 실패")
         return None
     
-    # 4. 데이터 정제
+    # 7. 데이터 정제
     if not loader.clean_data():
         print("데이터 정제 실패")
         return None
     
-    # 5. 텍스트 통계 분석
+    # 8. 텍스트 통계 분석
     loader.analyze_text_statistics()
     
-    # 6. Hugging Face Dataset 변환
+    # 9. Hugging Face Dataset 변환
     if not loader.convert_to_datasets():
         print("Dataset 변환 실패")
         return None
     
-    # 7. 전처리된 데이터 저장
+    # 10. 전처리된 데이터 저장
     loader.save_processed_data()
     
-    # 8. 최종 정보 출력
+    # 11. 최종 정보 출력
     info = loader.get_dataset_info()
     
     print("\n" + "="*80)
