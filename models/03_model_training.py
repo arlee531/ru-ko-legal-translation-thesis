@@ -60,13 +60,13 @@ class LegalTranslationTrainer:
             "training": {
                 "output_dir": "./models/trained/nllb-legal-ru-ko",
                 "num_train_epochs": 3,
-                "per_device_train_batch_size": 2,
-                "gradient_accumulation_steps": 4,
+                "per_device_train_batch_size": 8,
+                "gradient_accumulation_steps": 2,
                 "learning_rate": 1e-5,
                 "warmup_steps": 300,
                 "weight_decay": 0.01,
-                "logging_steps": 200,
-                "save_steps": 1000,
+                "logging_steps": 100,
+                "save_steps": 500,
                 "eval_steps": 500,
                 "fp16": True,
                 "early_stopping_patience": 3
