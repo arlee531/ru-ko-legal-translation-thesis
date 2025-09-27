@@ -2,7 +2,7 @@
 Basic Vocabulary Statistics Analysis
 러-한 법률 병렬 코퍼스 기본 어휘 통계 분석
 
-Author: [Your Name]
+Author: Ahreum Lee
 Date: 2025
 Description: TTR, 고빈도 어휘, 어휘 다양성 등 기본 통계 분석
 """
