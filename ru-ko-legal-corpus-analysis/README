@@ -1,0 +1,8 @@
+# Russian-Korean Legal Parallel Corpus Vocabulary Analysis
+
+## Description
+코퍼스 어휘 통계 및 법률 전문용어 추출 분석
+
+## Installation
+```bash
+pip install -r requirements.txt
