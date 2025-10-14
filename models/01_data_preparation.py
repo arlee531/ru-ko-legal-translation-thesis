@@ -1,8 +1,6 @@
 """
 데이터 준비 (파일 업로드 및 전처리)
 Data Preparation with File Upload (Loading and Preprocessing)
-
-본 스크립트는 논문 5.1.3의 첫 번째 단계인 데이터 준비를 담당합니다.
 - 파일 업로드 기능 추가
 - CSV 파일 로드
 - 컬럼명 표준화
