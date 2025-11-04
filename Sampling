@@ -1,0 +1,121 @@
+"""
+Russian-Korean Legal Translation Sampling Script
+
+This script performs stratified sampling to select 350 sentences 
+from a 1000-sentence test set for manual evaluation.
+
+Usage:
+    python sampling.py --input test_v2.csv --output sample_350.csv
+"""
+
+import pandas as pd
+import numpy as np
+import random
+import argparse
+from sklearn.model_selection import train_test_split
+
+
+def stratified_sample(df, n_samples=350, seed=42):
+    """
+    Perform stratified sampling based on sentence length.
+    
+    Args:
+        df: DataFrame with 'ru' column
+        n_samples: Number of samples to select
+        seed: Random seed for reproducibility
+        
+    Returns:
+        sample_df: Sampled DataFrame
+        sample_indices: List of selected indices
+    """
+    # Set random seed
+    random.seed(seed)
+    np.random.seed(seed)
+    
+    # Calculate sentence length
+    df['length'] = df['ru'].str.len()
+    
+    # Create length categories
+    df['length_category'] = pd.cut(
+        df['length'], 
+        bins=[0, 100, 200, float('inf')],
+        labels=['short', 'medium', 'long']
+    )
+    
+    # Stratified sampling
+    sample_df, _ = train_test_split(
+        df,
+        train_size=n_samples,
+        stratify=df['length_category'],
+        random_state=seed
+    )
+    
+    sample_indices = sample_df.index.tolist()
+    
+    return sample_df, sample_indices
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Stratified sampling for legal translation evaluation'
+    )
+    parser.add_argument(
+        '--input', 
+        default='test_v2.csv',
+        help='Input test set CSV file'
+    )
+    parser.add_argument(
+        '--output', 
+        default='sample_350.csv',
+        help='Output sample CSV file'
+    )
+    parser.add_argument(
+        '--n-samples', 
+        type=int, 
+        default=350,
+        help='Number of samples to select'
+    )
+    parser.add_argument(
+        '--seed', 
+        type=int, 
+        default=42,
+        help='Random seed for reproducibility'
+    )
+    
+    args = parser.parse_args()
+    
+    # Load data
+    print(f"Loading {args.input}...")
+    df = pd.read_csv(args.input)
+    print(f"Total sentences: {len(df)}")
+    
+    # Perform sampling
+    print(f"\nPerforming stratified sampling (n={args.n_samples}, seed={args.seed})...")
+    sample_df, sample_indices = stratified_sample(
+        df, 
+        n_samples=args.n_samples, 
+        seed=args.seed
+    )
+    
+    # Save results
+    sample_df.to_csv(args.output, index=False)
+    np.save('sample_indices.npy', sample_indices)
+    
+    with open('sample_indices.txt', 'w') as f:
+        f.write(','.join(map(str, sample_indices)))
+    
+    print(f"\n✅ Sampling completed!")
+    print(f"   - Sample CSV: {args.output}")
+    print(f"   - Indices (npy): sample_indices.npy")
+    print(f"   - Indices (txt): sample_indices.txt")
+    
+    # Print distribution
+    print(f"\n=== Length Distribution ===")
+    print("Original:")
+    print(df['length_category'].value_counts().sort_index())
+    print("\nSample:")
+    print(sample_df['length_category'].value_counts().sort_index())
+
+
+if __name__ == '__main__':
+    main()
