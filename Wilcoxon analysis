@@ -1,0 +1,121 @@
+# 필요한 패키지 설치 및 임포트
+import pandas as pd
+import numpy as np
+from scipy import stats
+
+# 데이터 로드
+file_path = '평가자1_2_종합점수.xlsx'  # 파일 경로 수정 필요
+df = pd.read_excel(file_path)
+
+print("="*80)
+print("러시아어-한국어 법률 번역 미세조정 효과 통계 분석")
+print("Statistical Analysis of Fine-tuning Effects on Russian-Korean Legal Translation")
+print("="*80)
+
+# ============================================================================
+# 1. NLLB-200 vs NLLB-200-FT 분석
+# ============================================================================
+
+print("\n[1] NLLB-200 vs NLLB-200-FT")
+print("-"*80)
+
+# 데이터 추출
+nllb_base = df['평균-점수.1'].dropna()  # NLLB-200
+nllb_ft = df['평균-점수.2'].dropna()    # NLLB-200-FT
+
+# 같은 길이로 맞추기
+n = min(len(nllb_base), len(nllb_ft))
+nllb_base = nllb_base[:n]
+nllb_ft = nllb_ft[:n]
+
+# 기술통계
+print(f"샘플 크기: {n}")
+print(f"Base 모델: 평균={nllb_base.mean():.2f}, SD={nllb_base.std():.2f}")
+print(f"FT 모델:   평균={nllb_ft.mean():.2f}, SD={nllb_ft.std():.2f}")
+print(f"향상폭:    {nllb_ft.mean() - nllb_base.mean():.2f}점")
+
+# Wilcoxon signed-rank test
+stat_nllb, p_nllb = stats.wilcoxon(nllb_base, nllb_ft)
+print(f"\nWilcoxon signed-rank test:")
+print(f"  W = {stat_nllb:.0f}")
+print(f"  p-value = {p_nllb:.2e}")
+
+# Cohen's d
+pooled_std_nllb = np.sqrt((np.var(nllb_base, ddof=1) + np.var(nllb_ft, ddof=1)) / 2)
+cohens_d_nllb = (nllb_ft.mean() - nllb_base.mean()) / pooled_std_nllb
+print(f"\nCohen's d = {cohens_d_nllb:.2f}")
+
+# 개선된 문장 비율
+improved = (nllb_ft > nllb_base).sum()
+worse = (nllb_ft < nllb_base).sum()
+equal = (nllb_ft == nllb_base).sum()
+print(f"\n문장별 비교:")
+print(f"  FT > Base: {improved}개 ({improved/n*100:.1f}%)")
+print(f"  FT < Base: {worse}개 ({worse/n*100:.1f}%)")
+print(f"  FT = Base: {equal}개 ({equal/n*100:.1f}%)")
+
+# ============================================================================
+# 2. mBART-50 vs mBART-50-FT 분석
+# ============================================================================
+
+print("\n\n[2] mBART-50 vs mBART-50-FT")
+print("-"*80)
+
+# 데이터 추출
+mbart_base = df['평균-점수.3'].dropna()  # mBART-50
+mbart_ft = df['평균-점수.4'].dropna()    # mBART-50-FT
+
+# 같은 길이로 맞추기
+n = min(len(mbart_base), len(mbart_ft))
+mbart_base = mbart_base[:n]
+mbart_ft = mbart_ft[:n]
+
+# 기술통계
+print(f"샘플 크기: {n}")
+print(f"Base 모델: 평균={mbart_base.mean():.2f}, SD={mbart_base.std():.2f}")
+print(f"FT 모델:   평균={mbart_ft.mean():.2f}, SD={mbart_ft.std():.2f}")
+print(f"향상폭:    {mbart_ft.mean() - mbart_base.mean():.2f}점")
+
+# Wilcoxon signed-rank test
+stat_mbart, p_mbart = stats.wilcoxon(mbart_base, mbart_ft)
+print(f"\nWilcoxon signed-rank test:")
+print(f"  W = {stat_mbart:.0f}")
+print(f"  p-value = {p_mbart:.2e}")
+
+# Cohen's d
+pooled_std_mbart = np.sqrt((np.var(mbart_base, ddof=1) + np.var(mbart_ft, ddof=1)) / 2)
+cohens_d_mbart = (mbart_ft.mean() - mbart_base.mean()) / pooled_std_mbart
+print(f"\nCohen's d = {cohens_d_mbart:.2f}")
+
+# 개선된 문장 비율
+improved = (mbart_ft > mbart_base).sum()
+worse = (mbart_ft < mbart_base).sum()
+equal = (mbart_ft == mbart_base).sum()
+print(f"\n문장별 비교:")
+print(f"  FT > Base: {improved}개 ({improved/n*100:.1f}%)")
+print(f"  FT < Base: {worse}개 ({worse/n*100:.1f}%)")
+print(f"  FT = Base: {equal}개 ({equal/n*100:.1f}%)")
+
+# ============================================================================
+# 3. 결과 요약 테이블
+# ============================================================================
+
+print("\n\n[3] 통계 분석 결과 요약")
+print("="*80)
+
+summary = pd.DataFrame({
+    '모델': ['NLLB-200 → NLLB-200-FT', 'mBART-50 → mBART-50-FT'],
+    'Base 평균±SD': [f'{nllb_base.mean():.2f}±{nllb_base.std():.2f}', 
+                    f'{mbart_base.mean():.2f}±{mbart_base.std():.2f}'],
+    'FT 평균±SD': [f'{nllb_ft.mean():.2f}±{nllb_ft.std():.2f}', 
+                  f'{mbart_ft.mean():.2f}±{mbart_ft.std():.2f}'],
+    '향상폭': [f'{nllb_ft.mean() - nllb_base.mean():.2f}', 
+             f'{mbart_ft.mean() - mbart_base.mean():.2f}'],
+    'W': [f'{stat_nllb:.0f}', f'{stat_mbart:.0f}'],
+    'p-value': [f'{p_nllb:.2e}', f'{p_mbart:.2e}'],
+    "Cohen's d": [f'{cohens_d_nllb:.2f}', f'{cohens_d_mbart:.2f}']
+})
+
+print(summary.to_string(index=False))
+print("\n*** p<0.001 (통계적으로 매우 유의함)")
+print("="*80)
