@@ -1,0 +1,393 @@
+"""
+Inter-Rater Reliability Analysis
+=================================
+This script calculates inter-rater reliability metrics including:
+- Weighted Cohen's Kappa (linear and quadratic)
+- Pearson correlation coefficient
+- Agreement statistics
+
+Author: [Your Name]
+Date: 2024
+"""
+
+import pandas as pd
+import numpy as np
+from sklearn.metrics import cohen_kappa_score
+from scipy.stats import pearsonr
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Configuration
+INPUT_FILE = 'rater_scores.xlsx'  # Input file with rater scores
+OUTPUT_DIR = './outputs/'  # Directory for output files
+
+def load_data(filepath):
+    """
+    Load rater scores from Excel file.
+    
+    Expected columns:
+    - id: Sentence ID (optional)
+    - model: Model name (optional)
+    - rater1_score: Scores from Rater 1
+    - rater2_score: Scores from Rater 2
+    
+    Parameters:
+    -----------
+    filepath : str
+        Path to the Excel file
+        
+    Returns:
+    --------
+    pd.DataFrame
+        DataFrame with rater scores
+    """
+    df = pd.read_excel(filepath)
+    print(f"Data loaded: {df.shape[0]} rows, {df.shape[1]} columns")
+    print(f"Columns: {df.columns.tolist()}")
+    return df
+
+def calculate_reliability(rater1, rater2):
+    """
+    Calculate inter-rater reliability metrics.
+    
+    Parameters:
+    -----------
+    rater1 : array-like
+        Scores from Rater 1
+    rater2 : array-like
+        Scores from Rater 2
+        
+    Returns:
+    --------
+    dict
+        Dictionary containing reliability metrics
+    """
+    # Cohen's Kappa
+    kappa_unweighted = cohen_kappa_score(rater1, rater2)
+    kappa_linear = cohen_kappa_score(rater1, rater2, weights='linear')
+    kappa_quadratic = cohen_kappa_score(rater1, rater2, weights='quadratic')
+    
+    # Pearson correlation
+    corr, p_value = pearsonr(rater1, rater2)
+    
+    # Agreement statistics
+    diff = rater1 - rater2
+    exact_match = (diff == 0).sum() / len(diff) * 100
+    within_1 = (np.abs(diff) <= 1).sum() / len(diff) * 100
+    within_2 = (np.abs(diff) <= 2).sum() / len(diff) * 100
+    
+    results = {
+        'n': len(rater1),
+        'kappa_unweighted': kappa_unweighted,
+        'kappa_linear': kappa_linear,
+        'kappa_quadratic': kappa_quadratic,
+        'pearson_r': corr,
+        'pearson_p': p_value,
+        'r_squared': corr**2,
+        'mean_diff': diff.mean(),
+        'std_diff': diff.std(),
+        'mae': np.abs(diff).mean(),
+        'exact_match_pct': exact_match,
+        'within_1_pct': within_1,
+        'within_2_pct': within_2
+    }
+    
+    return results
+
+def interpret_kappa(kappa):
+    """
+    Interpret kappa value according to Landis & Koch (1977).
+    
+    Parameters:
+    -----------
+    kappa : float
+        Kappa value
+        
+    Returns:
+    --------
+    str
+        Interpretation of kappa value
+    """
+    if kappa < 0:
+        return "Poor"
+    elif kappa < 0.20:
+        return "Slight"
+    elif kappa < 0.40:
+        return "Fair"
+    elif kappa < 0.60:
+        return "Moderate"
+    elif kappa < 0.80:
+        return "Substantial"
+    else:
+        return "Almost Perfect"
+
+def print_results(results):
+    """
+    Print reliability analysis results.
+    
+    Parameters:
+    -----------
+    results : dict
+        Dictionary containing reliability metrics
+    """
+    print("\n" + "="*60)
+    print("INTER-RATER RELIABILITY ANALYSIS RESULTS")
+    print("="*60)
+    
+    print("\n1. Cohen's Kappa")
+    print("-"*60)
+    print(f"Unweighted Kappa:         {results['kappa_unweighted']:.4f} ({interpret_kappa(results['kappa_unweighted'])})")
+    print(f"Linear Weighted Kappa:    {results['kappa_linear']:.4f} ({interpret_kappa(results['kappa_linear'])})")
+    print(f"Quadratic Weighted Kappa: {results['kappa_quadratic']:.4f} ({interpret_kappa(results['kappa_quadratic'])})")
+    
+    print("\n2. Pearson Correlation")
+    print("-"*60)
+    print(f"Pearson's r:    {results['pearson_r']:.4f}")
+    print(f"R-squared:      {results['r_squared']:.4f}")
+    print(f"p-value:        {results['pearson_p']:.2e}")
+    
+    print("\n3. Agreement Statistics")
+    print("-"*60)
+    print(f"Sample size:           {results['n']}")
+    print(f"Mean difference:       {results['mean_diff']:.2f}")
+    print(f"SD of difference:      {results['std_diff']:.2f}")
+    print(f"Mean absolute error:   {results['mae']:.2f}")
+    print(f"Exact match:           {results['exact_match_pct']:.2f}%")
+    print(f"Within ±1:             {results['within_1_pct']:.2f}%")
+    print(f"Within ±2:             {results['within_2_pct']:.2f}%")
+    print("="*60 + "\n")
+
+def create_visualizations(df, rater1_col, rater2_col, output_path='inter_rater_reliability.png'):
+    """
+    Create visualization plots for inter-rater reliability.
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame containing rater scores
+    rater1_col : str
+        Column name for Rater 1 scores
+    rater2_col : str
+        Column name for Rater 2 scores
+    output_path : str
+        Path to save the visualization
+    """
+    rater1 = df[rater1_col].values
+    rater2 = df[rater2_col].values
+    
+    fig = plt.figure(figsize=(16, 10))
+    
+    # 1. Scatter plot with regression line
+    ax1 = plt.subplot(2, 3, 1)
+    ax1.scatter(rater1, rater2, alpha=0.3, s=20, edgecolors='none')
+    
+    # Perfect agreement line
+    min_val, max_val = min(rater1.min(), rater2.min()), max(rater1.max(), rater2.max())
+    ax1.plot([min_val, max_val], [min_val, max_val], 'r--', linewidth=2, label='Perfect Agreement')
+    
+    # Regression line
+    z = np.polyfit(rater1, rater2, 1)
+    p = np.poly1d(z)
+    ax1.plot(sorted(rater1), p(sorted(rater1)), "b-", linewidth=2, label='Regression Line')
+    
+    corr, _ = pearsonr(rater1, rater2)
+    ax1.set_xlabel('Rater 1 Score', fontsize=11)
+    ax1.set_ylabel('Rater 2 Score', fontsize=11)
+    ax1.set_title(f'Scatter Plot (r = {corr:.4f})', fontsize=12, fontweight='bold')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    # 2. Confusion Matrix
+    ax2 = plt.subplot(2, 3, 2)
+    conf_matrix = pd.crosstab(df[rater1_col], df[rater2_col])
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='YlOrRd', ax=ax2)
+    ax2.set_xlabel('Rater 2 Score', fontsize=11)
+    ax2.set_ylabel('Rater 1 Score', fontsize=11)
+    ax2.set_title('Agreement Matrix', fontsize=12, fontweight='bold')
+    
+    # 3. Difference distribution
+    ax3 = plt.subplot(2, 3, 3)
+    diff = rater1 - rater2
+    ax3.hist(diff, bins=range(int(diff.min())-1, int(diff.max())+2), 
+             edgecolor='black', alpha=0.7, color='steelblue')
+    ax3.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Perfect Agreement')
+    ax3.axvline(x=diff.mean(), color='green', linestyle='--', linewidth=2, 
+                label=f'Mean Diff = {diff.mean():.2f}')
+    ax3.set_xlabel('Score Difference (Rater 1 - Rater 2)', fontsize=11)
+    ax3.set_ylabel('Frequency', fontsize=11)
+    ax3.set_title('Distribution of Score Differences', fontsize=12, fontweight='bold')
+    ax3.legend()
+    ax3.grid(True, alpha=0.3, axis='y')
+    
+    # 4. Bland-Altman Plot
+    ax4 = plt.subplot(2, 3, 4)
+    mean_scores = (rater1 + rater2) / 2
+    mean_diff = np.mean(diff)
+    std_diff = np.std(diff)
+    
+    ax4.scatter(mean_scores, diff, alpha=0.3, s=20, edgecolors='none')
+    ax4.axhline(y=mean_diff, color='red', linestyle='-', linewidth=2, 
+                label=f'Mean = {mean_diff:.2f}')
+    ax4.axhline(y=mean_diff + 1.96*std_diff, color='orange', linestyle='--', linewidth=1.5,
+                label=f'+1.96 SD = {mean_diff + 1.96*std_diff:.2f}')
+    ax4.axhline(y=mean_diff - 1.96*std_diff, color='orange', linestyle='--', linewidth=1.5,
+                label=f'-1.96 SD = {mean_diff - 1.96*std_diff:.2f}')
+    ax4.set_xlabel('Mean Score', fontsize=11)
+    ax4.set_ylabel('Difference (Rater 1 - Rater 2)', fontsize=11)
+    ax4.set_title('Bland-Altman Plot', fontsize=12, fontweight='bold')
+    ax4.legend(fontsize=9)
+    ax4.grid(True, alpha=0.3)
+    
+    # 5. Summary statistics table
+    ax5 = plt.subplot(2, 3, 5)
+    ax5.axis('off')
+    
+    kappa_linear = cohen_kappa_score(rater1, rater2, weights='linear')
+    kappa_quadratic = cohen_kappa_score(rater1, rater2, weights='quadratic')
+    
+    summary_data = [
+        ['Metric', 'Value', 'Interpretation'],
+        ['', '', ''],
+        ['Weighted Kappa (linear)', f'{kappa_linear:.4f}', interpret_kappa(kappa_linear)],
+        ['Weighted Kappa (quadratic)', f'{kappa_quadratic:.4f}', interpret_kappa(kappa_quadratic)],
+        ['Pearson r', f'{corr:.4f}', 'Strong' if abs(corr) > 0.7 else 'Moderate'],
+        ['R-squared', f'{corr**2:.4f}', ''],
+        ['', '', ''],
+        ['Exact Match', f'{(diff == 0).sum() / len(diff) * 100:.1f}%', ''],
+        ['Within ±1', f'{(np.abs(diff) <= 1).sum() / len(diff) * 100:.1f}%', ''],
+        ['Within ±2', f'{(np.abs(diff) <= 2).sum() / len(diff) * 100:.1f}%', ''],
+    ]
+    
+    table = ax5.table(cellText=summary_data, cellLoc='left', loc='center',
+                      colWidths=[0.4, 0.3, 0.3])
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 2.2)
+    
+    for i in range(3):
+        table[(0, i)].set_facecolor('#4472C4')
+        table[(0, i)].set_text_props(weight='bold', color='white')
+    
+    ax5.set_title('Summary Statistics', fontsize=12, fontweight='bold', pad=20)
+    
+    # 6. Box plot comparison
+    ax6 = plt.subplot(2, 3, 6)
+    box_data = [rater1, rater2]
+    bp = ax6.boxplot(box_data, labels=['Rater 1', 'Rater 2'], patch_artist=True)
+    for patch in bp['boxes']:
+        patch.set_facecolor('lightblue')
+    ax6.set_ylabel('Score', fontsize=11)
+    ax6.set_title('Score Distribution by Rater', fontsize=12, fontweight='bold')
+    ax6.grid(True, alpha=0.3, axis='y')
+    
+    plt.suptitle('Inter-Rater Reliability Analysis', 
+                 fontsize=14, fontweight='bold', y=0.995)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Visualization saved: {output_path}")
+
+def analyze_by_group(df, rater1_col, rater2_col, group_col):
+    """
+    Analyze inter-rater reliability by groups (e.g., by model).
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        DataFrame containing rater scores
+    rater1_col : str
+        Column name for Rater 1 scores
+    rater2_col : str
+        Column name for Rater 2 scores
+    group_col : str
+        Column name for grouping variable
+        
+    Returns:
+    --------
+    pd.DataFrame
+        DataFrame with reliability metrics by group
+    """
+    results = []
+    
+    for group in sorted(df[group_col].dropna().unique()):
+        group_data = df[df[group_col] == group]
+        r1 = group_data[rater1_col].values
+        r2 = group_data[rater2_col].values
+        
+        if len(r1) > 1:
+            metrics = calculate_reliability(r1, r2)
+            metrics['group'] = group
+            results.append(metrics)
+    
+    return pd.DataFrame(results)
+
+def save_results(df, overall_results, group_results, output_path='reliability_results.xlsx'):
+    """
+    Save analysis results to Excel file.
+    
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        Original data
+    overall_results : dict
+        Overall reliability metrics
+    group_results : pd.DataFrame
+        Reliability metrics by group
+    output_path : str
+        Path to save the Excel file
+    """
+    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        # Overall results
+        overall_df = pd.DataFrame([overall_results])
+        overall_df.to_excel(writer, sheet_name='Overall_Results', index=False)
+        
+        # Group results
+        if group_results is not None and not group_results.empty:
+            group_results.to_excel(writer, sheet_name='Results_by_Group', index=False)
+        
+        # Raw data
+        df.to_excel(writer, sheet_name='Raw_Data', index=False)
+    
+    print(f"Results saved: {output_path}")
+
+def main():
+    """
+    Main function to run inter-rater reliability analysis.
+    """
+    # Load data
+    print("Loading data...")
+    df = load_data(INPUT_FILE)
+    
+    # Define column names (adjust these to match your data)
+    rater1_col = 'rater1_score'  # Change this to your actual column name
+    rater2_col = 'rater2_score'  # Change this to your actual column name
+    
+    # Calculate overall reliability
+    print("\nCalculating inter-rater reliability...")
+    rater1 = df[rater1_col].values
+    rater2 = df[rater2_col].values
+    overall_results = calculate_reliability(rater1, rater2)
+    
+    # Print results
+    print_results(overall_results)
+    
+    # Analyze by group (optional)
+    group_col = 'model'  # Change this to your grouping variable or set to None
+    group_results = None
+    if group_col and group_col in df.columns:
+        print(f"\nAnalyzing reliability by {group_col}...")
+        group_results = analyze_by_group(df, rater1_col, rater2_col, group_col)
+        print("\nResults by group:")
+        print(group_results[['group', 'kappa_quadratic', 'pearson_r', 'exact_match_pct']].to_string(index=False))
+    
+    # Create visualizations
+    print("\nCreating visualizations...")
+    create_visualizations(df, rater1_col, rater2_col, OUTPUT_DIR + 'inter_rater_reliability.png')
+    
+    # Save results
+    print("\nSaving results...")
+    save_results(df, overall_results, group_results, OUTPUT_DIR + 'reliability_results.xlsx')
+    
+    print("\nAnalysis complete!")
+
+if __name__ == "__main__":
+    main()
