@@ -16,61 +16,61 @@ import os
 # Evaluation Prompts
 # ============================================================================
 
-FLUENCY_PROMPT = """당신은 러시아어-한국어 법률 번역의 유창성(Fluency)을 평가하는 전문가입니다.
+FLUENCY_PROMPT = """You are an expert evaluator of Russian-Korean legal translation fluency.
 
-【평가 기준】
-5점 (매우 우수): 한국어 문장이 매우 자연스럽고 법률 문체에 부합. 문법적·어휘·문맥적 오류 전혀 없음.
-4점 (우수): 전반적으로 자연스럽지만, 일부 표현이 약간 부자연스럽거나 법률 문체와 다소 어긋남.
-3점 (보통): 문장은 이해 가능하나 어색한 표현이나 문법적 부자연스러움이 있음. 법률 문체와 거리가 있음.
-2점 (미흡): 문장이 비문에 가깝거나 지나치게 번역투적임. 독해는 가능하나 자연스럽지 않음.
-1점 (매우 미흡): 한국어 문장으로 성립하기 어렵거나 심각하게 비자연스러움. 법률 텍스트로 기능 불가.
+【Evaluation Criteria】
+5 (Excellent): The Korean sentence is highly natural and conforms to legal writing style. No grammatical, lexical, or contextual errors.
+4 (Good): Generally natural, but some expressions are slightly awkward or deviate somewhat from legal writing style.
+3 (Fair): The sentence is understandable but contains awkward expressions or grammatical unnaturalness. Deviates from legal writing style.
+2 (Poor): The sentence is close to ungrammatical or excessively translationese. Readable but not natural.
+1 (Very Poor): Difficult to function as a Korean sentence or severely unnatural. Cannot function as a legal text.
 
-【평가 절차】
-1. 번역문을 읽고 문법, 어휘, 자연스러움, 법률 문체 적합성을 분석하세요.
-2. 위의 5단계 기준에 따라 점수를 매기세요.
-3. 반드시 다음 JSON 형식으로만 답변하세요:
-
-{{
-  "analysis": "평가 이유와 근거 (2-3문장)",
-  "score": 점수 (1-5 사이의 정수)
-}}
-
-【원문(러시아어)】
-{source}
-
-【번역문(한국어)】
-{translation}
-
-위 번역문의 유창성을 평가해주세요."""
-
-
-FIDELITY_PROMPT = """당신은 러시아어-한국어 법률 번역의 충실성(Fidelity)을 평가하는 전문가입니다.
-
-【평가 기준】
-5점 (매우 우수): 원문의 의미가 완전하고 정확하게 전달됨. 법률 개념·용어·조건·절차 등이 누락 없이 반영됨.
-4점 (우수): 원문의 핵심 의미가 충실히 반영되었으나, 세부적 뉘앙스나 일부 용어 선택에서 약간의 차이가 있음.
-3점 (보통): 원문의 주요 의미는 전달되었으나, 부분적 의미 왜곡이 존재함.
-2점 (미흡): 원문의 의미가 상당 부분 왜곡·누락됨. 법률적 핵심 요소(조건, 주체, 범위 등)가 잘못 전달됨.
-1점 (매우 미흡): 원문 의미를 거의 전달하지 못함. 법률적 함의가 크게 왜곡되어 원문과 불일치.
-
-【평가 절차】
-1. 원문과 번역문을 비교하여 의미 전달의 정확성을 분석하세요.
-2. 법률 용어, 조건, 주체, 범위 등이 정확히 전달되었는지 확인하세요.
-3. 위의 5단계 기준에 따라 점수를 매기세요.
-4. 반드시 다음 JSON 형식으로만 답변하세요:
+【Evaluation Procedure】
+1. Read the translation and analyze grammar, vocabulary, naturalness, and appropriateness for legal writing style.
+2. Assign a score according to the 5-level criteria above.
+3. Respond ONLY in the following JSON format:
 
 {{
-  "analysis": "평가 이유와 근거 (2-3문장)",
-  "score": 점수 (1-5 사이의 정수)
+  "analysis": "Explanation and rationale for the evaluation (2-3 sentences)",
+  "score": score (integer between 1-5)
 }}
 
-【원문(러시아어)】
+【Source (Russian)】
 {source}
 
-【번역문(한국어)】
+【Translation (Korean)】
 {translation}
 
-위 번역문의 충실성을 평가해주세요."""
+Please evaluate the fluency of the above translation."""
+
+
+FIDELITY_PROMPT = """You are an expert evaluator of Russian-Korean legal translation fidelity.
+
+【Evaluation Criteria】
+5 (Excellent): The meaning of the source text is completely and accurately conveyed. Legal concepts, terminology, conditions, procedures, etc. are reflected without omission.
+4 (Good): The core meaning of the source is faithfully reflected, but there are slight differences in detailed nuances or some terminology choices.
+3 (Fair): The main meaning of the source is conveyed, but partial semantic distortion exists.
+2 (Poor): A significant portion of the source meaning is distorted or omitted. Key legal elements (conditions, subjects, scope, etc.) are incorrectly conveyed.
+1 (Very Poor): Almost fails to convey the source meaning. Legal implications are significantly distorted and inconsistent with the source.
+
+【Evaluation Procedure】
+1. Compare the source and translation to analyze the accuracy of meaning transfer.
+2. Verify whether legal terminology, conditions, subjects, scope, etc. are accurately conveyed.
+3. Assign a score according to the 5-level criteria above.
+4. Respond ONLY in the following JSON format:
+
+{{
+  "analysis": "Explanation and rationale for the evaluation (2-3 sentences)",
+  "score": score (integer between 1-5)
+}}
+
+【Source (Russian)】
+{source}
+
+【Translation (Korean)】
+{translation}
+
+Please evaluate the fidelity of the above translation."""
 
 
 # ============================================================================
@@ -266,11 +266,11 @@ Average:  {row['average_score_mean']:.2f} (±{row['average_score_std']:.2f})
 Evaluation Criteria
 {'='*70}
 
-Fluency (유창성):
+Fluency:
 - Measures naturalness, grammar, and appropriateness for legal text
 - Scale: 1 (very poor) to 5 (excellent)
 
-Fidelity (충실성):
+Fidelity:
 - Measures accuracy and completeness of meaning transfer
 - Scale: 1 (very poor) to 5 (excellent)
 
